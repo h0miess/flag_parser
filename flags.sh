@@ -1,0 +1,84 @@
+#!/bin/bash
+
+BASE_URL="http://194.87.94.159/share/"
+SUBMIT_URL="http://194.87.94.159/share/submit.php"
+BRIGADE_NUMBER="2.6"
+FOUND_FLAGS_FILE="found_flags.txt"
+LOG_FILE="log_$(date '+%Y-%m-%d_%H:%M:%S').log"
+
+log() {
+    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    local color='\033[0;33m'
+    local reset='\033[0m'
+    local message="${color}[$timestamp]${reset} $*"
+    echo -e "$message"
+    echo -e "$message" >> "$LOG_FILE"
+}
+
+get_file_list() {
+    curl -s "$BASE_URL" | grep -o 'href="[^"]*"' | sed 's/href="//;s/"$//' | grep -v '^$'
+}
+
+download_file_content() {
+    local filename="$1"
+    curl -s "${BASE_URL}${filename}"
+}
+
+find_flags() {
+    local content="$1"
+    echo "$content" | grep -E '.*\{MBKS1\}.*'
+}
+
+submit_flag() {
+    local flag="$1"
+    curl -s -X POST "$SUBMIT_URL" \
+        -d "brigade=$BRIGADE_NUMBER" \
+        -d "flag=$flag" \
+        && log "Flag $flag submitted successfully" \
+        || log "ERROR: Error while submitting flag $flag"
+}
+
+is_flag_found() {
+    local flag="$1"
+    grep -q "^$flag$" "$FOUND_FLAGS_FILE" 2>/dev/null
+}
+
+save_flag() {
+    local flag="$1"
+    echo "$flag" >> "$FOUND_FLAGS_FILE"
+    log "Flag $flag saved"
+}
+
+check_flags() {
+    local content="$1"
+    flags=$(find_flags "$content")
+            for flag in $flags; do
+                if ! is_flag_found "$flag"; then
+                    log "Found new flag: $flag"
+                    save_flag "$flag"
+                    submit_flag "$flag"
+                else
+                    log "WARNING: Flag $flag has already been found earlier"
+                fi
+            done
+}
+
+log "Start program"
+
+while true; do
+    file_list=$(get_file_list)
+    if [ -z "$file_list" ]; then
+        log "Can't get list of files!"
+        sleep 2
+        continue
+    fi
+
+    for filename in $file_list; do
+        decoded_filename=$(printf '%b' "${filename//%/\\x}")
+        log "Checking file '$decoded_filename'"
+        content=$(download_file_content "$filename")
+        if [ -n "$content" ]; then
+            check_flags "$content"
+        fi
+    done
+done    
