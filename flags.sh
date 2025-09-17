@@ -1,9 +1,15 @@
 #!/bin/bash
 
-BASE_URL="http://194.87.94.159/share/"
-SUBMIT_URL="http://194.87.94.159/share/submit.php"
+SERVER_IP="194.87.94.159"
+TOKEN="SuperSecretToken123"
+BASE_URL="http://${SERVER_IP}/share"
+FILE_LIST_URL="${BASE_URL}/?token=${TOKEN}"
+TOKEN_URL="http://${SERVER_IP}/share/token.php"
+SUBMIT_URL="http://${SERVER_IP}/share/submit.php"
 BRIGADE_NUMBER="2.6"
+
 FOUND_FLAGS_FILE="found_flags.txt"
+FLAGS_AND_FILES_OUTPUT="flags_files.txt"
 LOG_FILE="log_$(date '+%Y-%m-%d_%H:%M:%S').log"
 
 log() {
@@ -15,8 +21,14 @@ log() {
     echo -e "$message" >> "$LOG_FILE"
 }
 
+log_file() {
+    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    local message="[$timestamp] $*"
+    echo "$message" >> "$FLAGS_AND_FILES_OUTPUT"
+}
+
 get_file_list() {
-    curl -s "$BASE_URL" | grep -o 'href="[^"]*"' | sed 's/href="//;s/"$//' | grep -v '^$'
+    curl -s "$FILE_LIST_URL" | grep -o 'href="[^"]*"' | sed 's/href="//;s/"$//' | grep -v '^$'
 }
 
 download_file_content() {
@@ -26,7 +38,7 @@ download_file_content() {
 
 find_flags() {
     local content="$1"
-    echo "$content" | grep -E '.*\{MBKS1\}.*'
+    echo "$content" | grep -E '.*\{MBKS2.6\}.*'
 }
 
 submit_flag() {
@@ -51,10 +63,12 @@ save_flag() {
 
 check_flags() {
     local content="$1"
+    local filename="$2"
     flags=$(find_flags "$content")
             for flag in $flags; do
                 if ! is_flag_found "$flag"; then
                     log "Found new flag: $flag"
+                    log_file "flag [$flag] in file [$filename]"
                     save_flag "$flag"
                     submit_flag "$flag"
                 else
@@ -63,12 +77,20 @@ check_flags() {
             done
 }
 
+update_token() {
+    TOKEN=$(curl -s "$TOKEN_URL")
+    FILE_LIST_URL="http://${SERVER_IP}/share/?token=${TOKEN}"
+    log "Token updated successfully: ${TOKEN}"
+    return 0
+}
+
 log "Start program"
 
 while true; do
     file_list=$(get_file_list)
     if [ -z "$file_list" ]; then
-        log "Can't get list of files!"
+        log "Can't get list of files! Try to update token"
+        update_token
         sleep 2
         continue
     fi
@@ -78,7 +100,7 @@ while true; do
         log "Checking file '$decoded_filename'"
         content=$(download_file_content "$filename")
         if [ -n "$content" ]; then
-            check_flags "$content"
+            check_flags "$content" "$decoded_filename"
         fi
     done
 done    
