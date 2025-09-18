@@ -10,7 +10,7 @@ BRIGADE_NUMBER="2.6"
 
 FOUND_FLAGS_FILE="found_flags.txt"
 FLAGS_AND_FILES_OUTPUT="flags_files.txt"
-LOG_FILE="log_$(date '+%Y-%m-%d_%H:%M:%S').log"
+LOG_FILE="logs/log_$(date '+%Y-%m-%d_%H:%M:%S').log"
 
 log() {
     local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
@@ -33,7 +33,7 @@ get_file_list() {
 
 download_file_content() {
     local filename="$1"
-    curl -s "${BASE_URL}${filename}"
+    curl -s "${BASE_URL}/${filename}"
 }
 
 find_flags() {
@@ -100,6 +100,8 @@ while true; do
         log "Checking file '$decoded_filename'"
         content=$(download_file_content "$filename")
         if [ -n "$content" ]; then
+#            echo $content >> "$decoded_filename.tx"
+            echo "===========================" >> content.txt
             check_flags "$content" "$decoded_filename"
         fi
     done
