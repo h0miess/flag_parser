@@ -101,7 +101,6 @@ while true; do
         content=$(download_file_content "$filename")
         if [ -n "$content" ]; then
 #            echo $content >> "$decoded_filename.tx"
-            echo "===========================" >> content.txt
             check_flags "$content" "$decoded_filename"
         fi
     done
