@@ -22,9 +22,13 @@ log() {
 }
 
 log_file() {
+    local text="$1"
+    local content="$2"
+    local filename="$3"
     local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-    local message="[$timestamp] $*"
+    local message="[$timestamp] $text"
     echo "$message" >> "$FLAGS_AND_FILES_OUTPUT"
+    echo "$content" >> "files/${filename}_$(date '+%Y-%m-%d_%H-%M-%S')"
 }
 
 get_file_list() {
@@ -68,7 +72,7 @@ check_flags() {
             for flag in $flags; do
                 if ! is_flag_found "$flag"; then
                     log "Found new flag: $flag"
-                    log_file "flag [$flag] in file [$filename]"
+                    log_file "flag [$flag] in file [$filename]" "$content" "$filename"
                     save_flag "$flag"
                     submit_flag "$flag"
                 else
@@ -100,7 +104,7 @@ while true; do
         log "Checking file '$decoded_filename'"
         content=$(download_file_content "$filename")
         if [ -n "$content" ]; then
-#            echo $content >> "$decoded_filename.tx"
+#            echo $content >> "$decoded_filename.txt"
             check_flags "$content" "$decoded_filename"
         fi
     done
